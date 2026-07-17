@@ -83,6 +83,7 @@ export class BaseAgent {
       system: this.systemPrompt(),
       user: `${memoryBlock}\n\nTask from the CEO Agent:\n${task}`,
       maxTokens: 1200,
+      meta: { userId: this.user.id, context: `specialist:${this.slug}` },
     });
 
     await db().from("agent_conversations").insert([

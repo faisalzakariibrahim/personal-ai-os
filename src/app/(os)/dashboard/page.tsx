@@ -2,6 +2,7 @@ import { db, getOwner } from "@/lib/supabase";
 import { recentEvents } from "@/lib/events";
 import ChatPanel from "@/components/ChatPanel";
 import BriefingCard from "@/components/BriefingCard";
+import InboxCard from "@/components/InboxCard";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,9 @@ export default async function Dashboard() {
   ]);
   const pending = approvalsRes.data?.length ?? 0;
   const active = agentsRes.data?.length ?? 0;
+  const { data: spendData } = await db().rpc("daily_spend", { p_user_id: user.id });
+  const spent = Number(spendData ?? 0);
+  const cap = Number(user.daily_cost_cap_usd ?? 5);
 
   return (
     <div className="space-y-6">
@@ -27,10 +31,22 @@ export default async function Dashboard() {
           <span className={`chip ${pending ? "bg-warn/20 text-warn" : "bg-edge text-slate-300"}`}>
             {pending} pending approval{pending === 1 ? "" : "s"}
           </span>
+          <span className={`chip ${cap > 0 && spent >= cap ? "bg-bad/20 text-bad" : "bg-edge text-slate-300"}`}>
+            ${spent.toFixed(2)}{cap > 0 ? ` / $${cap.toFixed(0)}` : ""} today
+          </span>
         </div>
       </div>
 
+      {user.lockdown && (
+        <div className="panel border-bad/50 bg-bad/10 text-sm text-bad flex items-center justify-between">
+          <span>⏻ Lockdown is active — all agents are paused.</span>
+          <a href="/settings" className="underline">Lift it in Settings</a>
+        </div>
+      )}
+
       <BriefingCard />
+
+      <InboxCard />
 
       <div className="grid lg:grid-cols-2 gap-6">
         <ChatPanel />

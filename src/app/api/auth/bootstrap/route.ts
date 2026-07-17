@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, getOwner } from "@/lib/supabase";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 /**
  * One-time owner setup: creates the auth user for OWNER_EMAIL and links it
@@ -7,6 +8,11 @@ import { db, getOwner } from "@/lib/supabase";
  */
 export async function POST(req: NextRequest) {
   try {
+    const { allowed } = await rateLimit({ key: "bootstrap", ip: clientIp(req), limit: 5, windowSec: 3600 });
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 });
+    }
+
     const { email, password } = await req.json();
     if (!email || !password || password.length < 8) {
       return NextResponse.json({ error: "Email and a password of 8+ characters required" }, { status: 400 });

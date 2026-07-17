@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { logUsage } from "./usage";
 
 let client: Anthropic | null = null;
 
@@ -10,19 +11,36 @@ export function anthropic(): Anthropic {
 export const CEO_MODEL = process.env.CEO_MODEL || "claude-sonnet-5";
 export const SPECIALIST_MODEL = process.env.SPECIALIST_MODEL || "claude-haiku-4-5-20251001";
 
-/** Single completion; returns text. */
+/** Pass this so token usage is attributed to the owner + a context label. */
+export interface UsageMeta {
+  userId?: string;
+  context?: string;
+}
+
+/** Single completion; returns text. Logs token usage when meta.userId is set. */
 export async function complete(opts: {
   model?: string;
   system: string;
   user: string;
   maxTokens?: number;
+  meta?: UsageMeta;
 }): Promise<string> {
+  const model = opts.model || SPECIALIST_MODEL;
   const res = await anthropic().messages.create({
-    model: opts.model || SPECIALIST_MODEL,
+    model,
     max_tokens: opts.maxTokens ?? 1500,
     system: opts.system,
     messages: [{ role: "user", content: opts.user }],
   });
+  if (opts.meta?.userId) {
+    await logUsage({
+      userId: opts.meta.userId,
+      model,
+      inputTokens: res.usage?.input_tokens ?? 0,
+      outputTokens: res.usage?.output_tokens ?? 0,
+      context: opts.meta.context ?? "chat",
+    });
+  }
   const block = res.content.find((b) => b.type === "text");
   return block && block.type === "text" ? block.text : "";
 }
@@ -33,6 +51,7 @@ export async function completeJson<T>(opts: {
   system: string;
   user: string;
   maxTokens?: number;
+  meta?: UsageMeta;
 }): Promise<T> {
   const raw = await complete({
     ...opts,

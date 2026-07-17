@@ -5,6 +5,7 @@ const nav = [
   { href: "/dashboard", label: "Dashboard", icon: "◉" },
   { href: "/agents", label: "Agents", icon: "⬢" },
   { href: "/approvals", label: "Approvals", icon: "✓" },
+  { href: "/notifications", label: "Notifications", icon: "◔" },
   { href: "/memory", label: "Memory", icon: "◈" },
   { href: "/projects", label: "Projects", icon: "▤" },
   { href: "/simulate", label: "Simulate", icon: "⇶" },

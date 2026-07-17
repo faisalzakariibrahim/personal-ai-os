@@ -18,6 +18,23 @@ Set these environment variables in Vercel → Project → Settings → Environme
 | `CEO_MODEL` / `SPECIALIST_MODEL` | optional overrides |
 | `OWNER_EMAIL` | your email — the only account allowed in |
 | `CRON_SECRET` | long random string — lets Vercel cron hit `/api/briefing` |
+| `GOOGLE_CLIENT_ID` | optional — Google OAuth client (Calendar + Gmail) |
+| `GOOGLE_CLIENT_SECRET` | optional — Google OAuth secret |
+
+### Google connector setup (optional)
+
+1. Google Cloud Console → APIs & Services → enable **Google Calendar API** and **Gmail API**.
+2. Credentials → Create OAuth client ID → **Web application**.
+3. Authorized redirect URIs:
+   - `https://YOUR_DOMAIN/api/connectors/google/callback`
+   - `http://localhost:3000/api/connectors/google/callback` (local dev)
+4. Put the client ID/secret in env vars, redeploy, then click **Connect Google** in Settings.
+
+Scopes are read-only for Calendar and Gmail, plus `gmail.compose` (drafts only — the app never sends mail; drafts require an approval first).
+
+### Git-based deploys (GitHub → Vercel)
+
+When you connect the GitHub repo, builds run from the repo — where `.env` is gitignored. So **every** variable above must be set in Vercel → Settings → Environment Variables (only `CRON_SECRET` is there so far).
 
 Notes:
 - `/api/chat` and `/api/simulate` set `maxDuration` (60–120s). On the Vercel Hobby plan functions cap at 60s; if CEO responses time out, reduce delegations or upgrade the plan.

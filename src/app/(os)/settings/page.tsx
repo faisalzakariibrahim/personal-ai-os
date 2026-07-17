@@ -1,5 +1,7 @@
 import { getOwner } from "@/lib/supabase";
 import { listConnectors } from "@/lib/integrations";
+import EmergencyControls from "@/components/EmergencyControls";
+import GoogleConnector from "@/components/GoogleConnector";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +39,9 @@ export default async function SettingsPage() {
       <div className="panel">
         <div className="text-sm font-semibold text-white mb-3">Integrations</div>
         <p className="text-xs text-slate-500 mb-3">All write actions through connectors require an approved approval — no exceptions.</p>
+        <div className="mb-3"><GoogleConnector /></div>
         <div className="grid md:grid-cols-2 gap-3">
-          {connectors.map((c) => (
+          {connectors.filter((c) => c.slug !== "google_calendar" && c.slug !== "gmail").map((c) => (
             <div key={c.slug} className="rounded-lg border border-edge p-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-medium text-white">{c.name}</div>
@@ -57,10 +60,11 @@ export default async function SettingsPage() {
       </div>
 
       <div className="panel border-bad/30">
-        <div className="text-sm font-semibold text-bad mb-2">Emergency Controls</div>
-        <p className="text-xs text-slate-400">
-          Disable any agent from the database (`agents.status = 'disabled'`) or via POST /api/agents.
-          The CEO Agent cannot be disabled. Level-4 (critical) actions are never executed by the system regardless of settings.
+        <div className="text-sm font-semibold text-bad mb-3">Emergency Controls</div>
+        <EmergencyControls />
+        <p className="text-[10px] text-slate-500 mt-4">
+          Individual agents can be enabled/disabled on the Agents page. The CEO Agent cannot be disabled.
+          Level-4 (critical) actions are never executed by the system regardless of settings.
         </p>
       </div>
     </div>

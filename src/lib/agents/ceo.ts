@@ -4,8 +4,17 @@ import { emit } from "../events";
 import { searchMemories, storeMemory } from "../memory";
 import { requestApproval } from "../approvals";
 import { classifyRisk } from "../risk";
+import { assertWithinBudget } from "../usage";
 import { activeAgents, instantiate } from "./registry";
 import type { AgentRow, CeoPlan, UserRow } from "../types";
+
+/** Thrown when the OS is in emergency lockdown. */
+export class LockdownError extends Error {
+  constructor() {
+    super("Personal AI OS is in lockdown. Agents are paused — lift lockdown in Settings to resume.");
+    this.name = "LockdownError";
+  }
+}
 
 /**
  * CEO Agent — central coordinator.
@@ -16,6 +25,9 @@ export async function runCeo(user: UserRow, request: string): Promise<{
   reply: string;
   approvalsCreated: { id: string; action: string; risk: number }[];
 }> {
+  if (user.lockdown) throw new LockdownError();
+  await assertWithinBudget(user);
+
   const agents = await activeAgents(user.id);
   const ceo = agents.find((a) => a.slug === "ceo");
   const specialists = agents.filter((a) => a.slug !== "ceo");
@@ -27,6 +39,7 @@ export async function runCeo(user: UserRow, request: string): Promise<{
   const plan = await completeJson<CeoPlan>({
     model: ceo?.model || CEO_MODEL,
     maxTokens: 1200,
+    meta: { userId: user.id, context: "ceo" },
     system: [
       `You are the CEO Agent of ${user.name}'s Personal AI OS — the executive coordinator of a team of specialist agents.`,
       `Available specialists (slug — mission):`,
@@ -90,6 +103,7 @@ export async function runCeo(user: UserRow, request: string): Promise<{
     reply = await complete({
       model: ceo?.model || CEO_MODEL,
       maxTokens: 1400,
+      meta: { userId: user.id, context: "ceo" },
       system: [
         `You are the CEO Agent. Synthesize your specialists' reports into one clear, concise answer for ${user.name}.`,
         `Explain reasoning briefly. If approvals were created, tell the user they're waiting in the Approval Center.`,

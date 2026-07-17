@@ -18,6 +18,8 @@ export interface UserRow {
   values: string[];
   goals: { goal: string; timeframe?: string; priority?: string; progress?: string }[];
   preferences: Record<string, unknown>;
+  lockdown?: boolean;
+  daily_cost_cap_usd?: number;
 }
 
 export interface AgentRow {

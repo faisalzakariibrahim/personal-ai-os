@@ -1,4 +1,5 @@
 import { db, getOwner } from "@/lib/supabase";
+import AgentToggle from "@/components/AgentToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function AgentsPage() {
                   {a.type}
                 </span>
                 <span className={`chip ${a.status === "active" ? "bg-good/20 text-good" : "bg-bad/20 text-bad"}`}>{a.status}</span>
+                <AgentToggle slug={a.slug} status={a.status} />
               </div>
             </div>
             <p className="text-sm text-slate-300 mb-1">{a.mission}</p>

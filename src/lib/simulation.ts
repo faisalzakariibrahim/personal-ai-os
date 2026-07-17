@@ -2,6 +2,7 @@ import { db } from "./supabase";
 import { completeJson, CEO_MODEL } from "./claude";
 import { searchMemories } from "./memory";
 import { emit } from "./events";
+import { assertWithinBudget } from "./usage";
 import type { SimulationOutcome, UserRow } from "./types";
 
 /**
@@ -9,11 +10,14 @@ import type { SimulationOutcome, UserRow } from "./types";
  * Simulation, not prediction: best/expected/worst with confidence, grounded in memory.
  */
 export async function runSimulation(user: UserRow, scenario: string): Promise<{ id: string; outcomes: SimulationOutcome }> {
+  if (user.lockdown) throw new Error("Personal AI OS is in lockdown. Lift it in Settings to run simulations.");
+  await assertWithinBudget(user);
   const memories = await searchMemories(user.id, scenario, { limit: 10 });
 
   const outcomes = await completeJson<SimulationOutcome>({
     model: CEO_MODEL,
     maxTokens: 1400,
+    meta: { userId: user.id, context: "simulation" },
     system: [
       `You are the Life Simulation Engine in ${user.name}'s Personal AI OS.`,
       `You model possible futures for a decision. You NEVER claim certainty; you show consequences and let the human choose.`,

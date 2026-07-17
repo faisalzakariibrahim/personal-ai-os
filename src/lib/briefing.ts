@@ -3,6 +3,8 @@ import { completeJson, CEO_MODEL } from "./claude";
 import { listMemories } from "./memory";
 import { pendingApprovals } from "./approvals";
 import { emit } from "./events";
+import { assertWithinBudget } from "./usage";
+import { getTodaysEvents } from "./connectors/google";
 import type { BriefingContent, UserRow } from "./types";
 
 /** Daily briefing — CEO-generated morning summary, cached per day. */
@@ -16,20 +18,28 @@ export async function getOrCreateBriefing(user: UserRow, force = false): Promise
     if (existing) return existing as never;
   }
 
-  const [memories, approvals, tasksRes] = await Promise.all([
+  await assertWithinBudget(user);
+
+  const [memories, approvals, tasksRes, events] = await Promise.all([
     listMemories(user.id, 30),
     pendingApprovals(user.id),
     db().from("tasks").select("title, status, priority, due_at")
       .eq("user_id", user.id).neq("status", "completed").limit(20),
+    getTodaysEvents(user.id, user.timezone).catch(() => []),
   ]);
+  const calendarLine = events.length
+    ? events.map((e) => `${e.summary} (${e.start})${e.location ? ` @ ${e.location}` : ""}`).join("; ")
+    : "No calendar connected or no events today.";
 
   const content = await completeJson<BriefingContent>({
     model: CEO_MODEL,
     maxTokens: 1200,
+    meta: { userId: user.id, context: "briefing" },
     system: [
       `You are the CEO Agent generating ${user.name}'s morning briefing. Timezone: ${user.timezone}. Date: ${today}.`,
       `Goals: ${JSON.stringify(user.goals)}. Values: ${JSON.stringify(user.values)}.`,
       `Open tasks: ${JSON.stringify(tasksRes.data ?? [])}`,
+      `Today's calendar events: ${calendarLine}`,
       `Pending approvals: ${JSON.stringify(approvals.map((a: { action: string }) => a.action))}`,
       `Recent memories: ${memories.slice(0, 15).map((m: { content: string }) => m.content).join(" | ")}`,
       `Return JSON: {"greeting": "...", "priorities": ["top 3"], "calendar": "1-2 sentence summary", "finance": "1-2 sentence note", "health": "1-2 sentence note", "recommendations": ["2-3 actionable items"], "pending_decisions": ["items awaiting the user"]}`,
