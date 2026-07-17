@@ -1,5 +1,8 @@
 # Personal AI OS v1.0 — Private Alpha
 
+![CI](https://github.com/faisalzakariibrahim/personal-ai-os/actions/workflows/ci.yml/badge.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 Your private AI executive team: a CEO Agent coordinating six specialist agents, with persistent memory, human-approval controls, a daily briefing, and a life simulation engine.
 
 Built on your stack: **Next.js 14 (App Router) · Supabase (Postgres + pgvector) · Claude API · Vercel-ready.**

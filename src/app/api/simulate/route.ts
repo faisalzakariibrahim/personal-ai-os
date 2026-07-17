@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOwner } from "@/lib/supabase";
 import { runSimulation, listSimulations } from "@/lib/simulation";
 
-export const maxDuration = 90;
+export const maxDuration = 60;
 
 export async function GET() {
   try {

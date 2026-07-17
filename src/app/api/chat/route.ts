@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOwner } from "@/lib/supabase";
 import { runCeo } from "@/lib/agents/ceo";
 
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
