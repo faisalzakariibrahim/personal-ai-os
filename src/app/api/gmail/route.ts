@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOwner } from "@/lib/supabase";
-import { getRecentMail, createDraft, googleStatus } from "@/lib/connectors/google";
+import { getRecentMail, createDraft, sendMessage, googleStatus } from "@/lib/connectors/google";
 import { complete } from "@/lib/claude";
 import { assertWithinBudget } from "@/lib/usage";
 import { canExecute } from "@/lib/approvals";
@@ -36,16 +36,23 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
   try {
-    const { to, subject, body } = await req.json();
+    const { to, subject, body, mode } = await req.json();
     if (!to || !subject) return NextResponse.json({ error: "to and subject required" }, { status: 400 });
     const user = await getOwner();
 
-    const action = `Draft email to ${to}: ${subject}`;
+    // mode 'send' actually delivers the email; 'draft' (default) only creates a draft.
+    // Both require an approved approval for the exact action string.
+    const send = mode === "send";
+    const action = send ? `Send email to ${to}: ${subject}` : `Draft email to ${to}: ${subject}`;
     if (!(await canExecute(user.id, action))) {
       return NextResponse.json(
-        { error: "This draft needs approval first. Ask the CEO Agent to prepare it, then approve it in the Approval Center." },
+        { error: `This ${send ? "send" : "draft"} needs approval first. Ask the CEO Agent to prepare it, then approve it in the Approval Center.` },
         { status: 403 }
       );
+    }
+    if (send) {
+      const messageId = await sendMessage(user.id, to, subject, body ?? "");
+      return NextResponse.json({ ok: true, sent: true, messageId });
     }
     const draftId = await createDraft(user.id, to, subject, body ?? "");
     return NextResponse.json({ ok: true, draftId });

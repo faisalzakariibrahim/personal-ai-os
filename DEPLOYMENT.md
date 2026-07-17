@@ -45,7 +45,12 @@ First visit → `/login` → “Set up the owner account” → enter `OWNER_EMA
 
 ## Scheduled morning briefing
 
-`vercel.json` already contains the cron (10:00 UTC = 6:00 AM ET). Set `CRON_SECRET` in Vercel env vars — the middleware admits cron requests carrying `Authorization: Bearer <CRON_SECRET>` (Vercel adds this header automatically when `CRON_SECRET` is set).
+`vercel.json` contains two crons, both authenticated by `CRON_SECRET` (Vercel adds the `Authorization: Bearer <CRON_SECRET>` header automatically):
+
+- `/api/briefing` at 10:00 UTC (6 AM ET) — daily briefing.
+- `/api/agents/email/scan` at 09:30 UTC — Email Agent scans the inbox and proposes tasks in the Task Inbox.
+
+The middleware allow-lists both cron paths for the bearer token.
 
 ## Database
 

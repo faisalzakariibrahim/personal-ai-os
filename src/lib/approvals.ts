@@ -15,6 +15,8 @@ export async function requestApproval(opts: {
   action: string;
   reason: string;
   cost?: number;
+  /** Structured action to execute automatically when approved, e.g. {kind:'email_send', to, subject, body}. */
+  payload?: Record<string, unknown>;
 }): Promise<{ id: string; risk: RiskLevel }> {
   const risk = classifyRisk(opts.action, opts.cost);
   const { data, error } = await db()
@@ -27,6 +29,7 @@ export async function requestApproval(opts: {
       reason: opts.reason,
       cost: opts.cost ?? null,
       risk_level: risk,
+      payload: opts.payload ?? {},
     })
     .select("id")
     .single();
@@ -64,7 +67,7 @@ export async function resolveApproval(opts: {
     .eq("id", opts.approvalId)
     .eq("user_id", opts.userId)
     .eq("status", "pending") // cannot re-resolve
-    .select("id, action, agent_id")
+    .select("id, action, agent_id, payload")
     .single();
   if (error) throw error;
 
@@ -74,6 +77,27 @@ export async function resolveApproval(opts: {
     sender: "user",
     payload: { approval_id: opts.approvalId, action: data.action },
   });
+
+  // Execute the approved action, if it carries an executable payload.
+  const payload = (data.payload ?? {}) as { kind?: string; to?: string; subject?: string; body?: string };
+  if (opts.decision === "approved" && payload.kind === "email_send") {
+    try {
+      const { sendMessage } = await import("./connectors/google");
+      const p = payload as { to: string; subject: string; body: string };
+      const messageId = await sendMessage(opts.userId, p.to, p.subject, p.body ?? "");
+      await emit({ userId: opts.userId, type: "email.sent", sender: "email", payload: { to: p.to, messageId } });
+      await db().from("notifications").insert({
+        user_id: opts.userId, title: "Email sent", body: `To ${p.to}: ${p.subject}`, kind: "info",
+      });
+    } catch (e) {
+      await db().from("approvals")
+        .update({ resolution_note: `Approved but send failed: ${String(e)}` })
+        .eq("id", opts.approvalId);
+      await db().from("notifications").insert({
+        user_id: opts.userId, title: "Email send failed", body: String(e), kind: "alert",
+      });
+    }
+  }
 
   // Trust feedback loop: approvals raise agent trust, rejections lower it.
   if (data.agent_id) {

@@ -192,6 +192,56 @@ export async function createDraft(userId: string, to: string, subject: string, b
   return data.id;
 }
 
+/**
+ * SEND a Gmail message. gmail.compose scope (already granted) permits sending.
+ * Call ONLY after an approval is granted — the caller is responsible for that gate.
+ */
+export async function sendMessage(userId: string, to: string, subject: string, body: string): Promise<string> {
+  const token = await getGoogleAccessToken(userId);
+  if (!token) throw new Error("Google not connected");
+  const raw = [
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    "Content-Type: text/plain; charset=utf-8",
+    "",
+    body,
+  ].join("\r\n");
+  const encoded = Buffer.from(raw).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ raw: encoded }),
+  });
+  if (!res.ok) throw new Error(`Send failed: ${await res.text()}`);
+  const data = await res.json();
+  return data.id;
+}
+
+/** Count events per day over the next N days (calendar "load") for prioritization. */
+export async function getCalendarLoad(userId: string, timezone: string, days = 7): Promise<Record<string, number>> {
+  const token = await getGoogleAccessToken(userId);
+  if (!token) return {};
+  const now = new Date();
+  const end = new Date(now.getTime() + days * 86400_000);
+  const params = new URLSearchParams({
+    timeMin: now.toISOString(), timeMax: end.toISOString(),
+    singleEvents: "true", orderBy: "startTime", timeZone: timezone, maxResults: "250",
+  });
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) return {};
+  const data = await res.json();
+  const load: Record<string, number> = {};
+  for (const e of data.items ?? []) {
+    const start: string = e.start?.dateTime ?? e.start?.date ?? "";
+    const day = start.slice(0, 10);
+    if (day) load[day] = (load[day] ?? 0) + 1;
+  }
+  return load;
+}
+
 export async function googleStatus(userId: string): Promise<"connected" | "error" | "disconnected"> {
   const { data } = await db()
     .from("connector_accounts")

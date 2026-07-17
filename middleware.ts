@@ -8,9 +8,10 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
-  // Vercel cron: GET /api/briefing with Authorization: Bearer CRON_SECRET
+  // Vercel cron endpoints: authenticated by Authorization: Bearer CRON_SECRET
+  const cronPaths = ["/api/briefing", "/api/agents/email/scan"];
   if (
-    path === "/api/briefing" &&
+    cronPaths.includes(path) &&
     process.env.CRON_SECRET &&
     req.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`
   ) {
