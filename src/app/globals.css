@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-base text-slate-200 antialiased;
+}
+
+.panel {
+  @apply bg-panel border border-edge rounded-xl p-5;
+}
+
+.chip {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+}
